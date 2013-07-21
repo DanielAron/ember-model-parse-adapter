@@ -13,6 +13,20 @@ Ember.ParseAdapter = Ember.Adapter.extend({
     });
   },
 
+  findQuery: function(klass, records, params) {
+    var url = classToEndpoint(klass),
+        query = encodeURIComponent("where=" + JSON.stringify(params)),
+        self = this;
+
+    return this._ajax([ url, query ].join("?")).then(function(data) {
+      self.didFindQuery(klass, records, params, data);
+    });
+  },
+
+  didFindQuery: function(klass, records, params, data) {
+      records.load(klass, data['results']);
+  },
+
   findAll: function(klass, records) {
     var endpoint = classToEndpoint(klass);
 
@@ -34,11 +48,14 @@ Ember.ParseAdapter = Ember.Adapter.extend({
   },
 
   didCreateRecord: function(record, data) {
-    var rootKey = get(record.constructor, 'rootKey'),
-        primaryKey = get(record.constructor, 'primaryKey'),
+    var rootKey = Ember.get(record.constructor, 'rootKey'),
+        primaryKey = Ember.get(record.constructor, 'primaryKey'),
+        originalData = record.toJSON(),
         dataToLoad = rootKey ? data[rootKey] : data;
 
-    record.load(dataToLoad[primaryKey], dataToLoad);
+    Ember.merge(originalData, dataToLoad);
+console.log("created", originalData);
+    record.load(dataToLoad[primaryKey], originalData);
     record.didCreateRecord();
   },
 
@@ -53,13 +70,28 @@ Ember.ParseAdapter = Ember.Adapter.extend({
     });
   },
 
-  _ajax: function(urlSuffix, params, method) {
-    var url = "https://api.parse.com/1/classes/" + urlSuffix;
-    return $.ajax(url, $.extend({
-      headers: {
-        "X-Parse-Application-Id": "",
-        "X-Parse-REST-API-Key": ""
-      }
-    }, params), method || "GET");
+  deleteRecord: function (record) {
+    var primaryKey = Ember.get(record.constructor, 'primaryKey'),
+        url = [ classToEndpoint(record.constructor), Ember.get(record, primaryKey) ].join("/");
+
+    return this._ajax(url, record.toJSON(), "DELETE").then(function() { 
+      record.didDeleteRecord();
+    });
+  },
+
+  _ajax: function (urlSuffix, params, method) {
+    var url = "https://api.parse.com/1/classes/" + urlSuffix,
+      data = {
+        contentType: "application/json",
+        dataType: "json",
+        headers: {
+          "X-Parse-Application-Id": "t1OLK47Xc6GGlU6SfE3UqSq3ajLGBgCGiiofGkrS",
+          "X-Parse-REST-API-Key": "e5iWAr2rduftKSFgTU4fyO9jtMUxreTAi2J9WSIX"
+        },
+        data: JSON.stringify(params),
+        type: method || "GET"
+      };
+
+    return $.ajax(url, data);
   }
 });
