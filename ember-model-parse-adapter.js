@@ -19,12 +19,8 @@ Ember.ParseAdapter = Ember.Adapter.extend({
         self = this;
 
     return this._ajax([ url, query ].join("?")).then(function(data) {
-      self.didFindQuery(klass, records, params, data);
-    });
-  },
-
-  didFindQuery: function(klass, records, params, data) {
       records.load(klass, data['results']);
+    });
   },
 
   findAll: function(klass, records) {
